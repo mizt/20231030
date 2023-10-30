@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>20231030</title>
+		<meta charset="utf-8">
+		<meta name="robots" content="noindex, nofollow">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<link rel="icon" href="data:;base64,=">
+		<script src="twgl.min.js"></script>
+		<style>
+			
+			* {
+				margin:0;
+				padding:0;
+				-webkit-user-select:none;
+				-moz-user-select:none;
+				-ms-user-select:none;
+			}
+			
+			body {
+				background:#00F;
+				width:100dvw;
+				height:100dvh;
+				overflow:hidden;
+			}
+			
+		</style>
+	</head>
+	<body>
+		<script type="module">
+			
+			import { Vector3 } from "./math/Vector3.js";
+			import { Matrix4 } from "./math/Matrix4.js";
+			import { Quaternion } from "./math/Quaternion.js";
+
+			const quaternion = new Quaternion();
+			const matrix = new Matrix4();
+			
+			const width = 1920;
+			const height = 1080;
+			
+			const div = document.createElement("div");
+			Object.assign(div.style,{"display":"flex","width":"100dvw","height":"100dvh"});
+			
+			const canvas = document.createElement("canvas");
+			Object.assign(canvas,{width:width,height:height});
+			Object.assign(canvas.style,{"vertical-align":"top","outline":"1px solid #55F"});
+			div.appendChild(canvas);
+
+			const fov = 60;
+			const near = 0.01;
+			const far = 1000.0;
+			
+			const y = 1.0/Math.tan((fov*0.5)*(Math.PI/180.0));
+			const x = y*(height/width);
+			
+			const uniforms = {
+				projectionMatrix:[
+					x,0,0,0,
+					0,y,0,0,0,
+					0,-((far+near)/(far-near)),-1,
+					0,0,-((2.0*far*near)/(far-near)),0
+				],
+				rotate:[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1],
+				translate:[0,0,-4.0]
+			};
+
+			const gl = canvas.getContext("webgl");
+			
+			const programInfo = twgl.createProgramInfo(gl,[`
+attribute vec4 position; 
+uniform mat4 projectionMatrix; 
+uniform mat4 rotate;
+uniform vec3 translate;
+void main() { 
+	gl_Position = projectionMatrix*(rotate*position+vec4(translate,0.0));
+}`,`
+precision mediump float;
+void main() { 
+	gl_FragColor = vec4(1.0); 
+}
+`]);
+			
+			const arrays = {
+				position:[
+					-1,-1, 0,
+					 1,-1, 0,
+					-1, 1, 0,
+					-1, 1, 0,
+					 1,-1, 0,
+					 1, 1, 0
+				]
+			};
+			const bufferInfo = twgl.createBufferInfoFromArrays(gl,arrays);
+			
+			const resize = ()=>{
+				const sx = window.innerWidth/width;
+				const sy = window.innerHeight/height;
+				if(sx<sy) {
+					Object.assign(canvas.style,{"width":"100dvw","height":"auto","margin":"auto 0"});
+				}
+				else {
+					Object.assign(canvas.style,{"width":"auto","height":"100dvh","margin":"0 auto"});
+				}
+			}
+			
+			let isResize = true;
+			window.addEventListener("resize",(e)=>{ isResize = true; });
+			
+			let time = 0.0;
+			const render = ()=>{
+				
+				if(isResize) {
+					resize();
+					isResize = false;
+				}
+				
+				quaternion.setFromAxisAngle(new Vector3(0,1,0),Math.PI*time);
+				matrix.makeRotationFromQuaternion(quaternion); 
+				uniforms.rotate = matrix.elements;
+				
+				gl.viewport(0,0,gl.canvas.width, gl.canvas.height);
+				gl.useProgram(programInfo.program);
+				twgl.setBuffersAndAttributes(gl,programInfo,bufferInfo);
+				twgl.setUniforms(programInfo,uniforms);
+				twgl.drawBufferInfo(gl,bufferInfo);
+				
+				time+=1.0/30.0;
+			};
+			
+			setInterval(render,33);
+			render();
+			
+			
+			document.body.appendChild(div);
+			
+		</script>
+	</body>
+</html>
